@@ -1,9 +1,11 @@
-import json
+import subprocess
 
-link = 'youtube'
+def execute_server_js():
+    try:
+        # Execute server.js using Node.js
+        subprocess.run(['node', 'server.js'], check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Error executing server.js: {e}")
 
-list = [link]
-
-json_object = json.dumps(list, indent=1)
-with open("sample.json", "w") as outfile:
-    outfile.write(json_object)
+if __name__ == "__main__":
+    execute_server_js()
