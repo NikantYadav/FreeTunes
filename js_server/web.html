@@ -7,10 +7,60 @@
 </head>
 <body>
     <h1>Submit YouTube Video ID</h1>
-    <form action="http://127.0.0.1:8000/" method="get">
+    <form id="videoForm" action="http://127.0.0.1:8000/" method="get">
         <label for="video_id">YouTube Video ID:</label>
         <input type="text" id="video_id" name="item_id" required>
-        <button type="submit">Submit</button>
+        <button type="submit" id="submitBtn">Submit</button>
     </form>
+
+    <div id="playSongSection" style="display: none;">
+        <h2>Play Song</h2>
+        <button id="playButton">Play</button>
+        <audio id="audioPlayer" controls style="display: none;"></audio>
+    </div>
+
+    <script>
+        document.getElementById('videoForm').addEventListener('submit', function(event) {
+            event.preventDefault(); // Prevent the default form submission behavior
+            
+            var videoId = document.getElementById('video_id').value;
+            
+            // Disable the submit button to prevent multiple clicks
+            document.getElementById('submitBtn').disabled = true;
+
+            // Make the API call asynchronously
+            fetch('http://127.0.0.1:8000/?item_id=' + videoId)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Handle the API response data
+                    console.log(data);
+                    // Optionally, display a success message to the user
+                    alert('Video ID submitted successfully!');
+                })
+                
+                .finally(() => {
+                    // Re-enable the submit button after the API call is complete
+                    document.getElementById('submitBtn').disabled = false;
+                    
+                    // Show the "Play Song" section regardless of the API call result
+                    document.getElementById('playSongSection').style.display = 'block';
+                });
+        });
+
+        document.getElementById('playButton').addEventListener('click', function() {
+            var audioPlayer = document.getElementById('audioPlayer');
+            
+            audioPlayer.src = 'mp3/audio.mp3'; // Replace 'mp3/audio.mp3' with the actual URL of the MP3 file
+            
+            audioPlayer.style.display = 'block';
+            
+            audioPlayer.play();        
+        });
+    </script>
 </body>
 </html>
