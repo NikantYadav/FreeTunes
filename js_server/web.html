@@ -19,6 +19,13 @@
         <audio id="audioPlayer" controls style="display: none;"></audio>
     </div>
 
+    <button id="showHideRecommendationsBtn">Show Song Recommendations</button>
+    <div id="recommendationsSection" style="display: none;">
+        <h2>Recommended Songs</h2>
+        <ul id="recommendationsList"></ul>
+    </div>
+
+
     <script>
         document.getElementById('videoForm').addEventListener('submit', function(event) {
             event.preventDefault(); // Prevent the default form submission behavior
@@ -39,8 +46,8 @@
                 .then(data => {
                     // Handle the API response data
                     console.log(data);
-                    // Optionally, display a success message to the user
-                    alert('Video ID submitted successfully!');
+                    var mp3Filename = data.filename;
+                    audioPlayer.src = 'mp3/' + mp3Filename;
                 })
                 
                 .finally(() => {
@@ -55,12 +62,55 @@
         document.getElementById('playButton').addEventListener('click', function() {
             var audioPlayer = document.getElementById('audioPlayer');
             
-            audioPlayer.src = 'mp3/audio.mp3'; // Replace 'mp3/audio.mp3' with the actual URL of the MP3 file
+            
+            audioPlayer.src = 'mp3/audio.mp3';
             
             audioPlayer.style.display = 'block';
             
             audioPlayer.play();        
         });
+
+
+
+
+        document.getElementById('showHideRecommendationsBtn').addEventListener('click', function() {
+            var recommendationsSection = document.getElementById('recommendationsSection');
+            var showHideRecommendationsBtn = document.getElementById('showHideRecommendationsBtn');
+
+            if (recommendationsSection.style.display === 'none') {
+                fetchRecommendations();
+                recommendationsSection.style.display = 'block';
+                showHideRecommendationsBtn.textContent = 'Hide Recommendations';
+            } else {
+                recommendationsSection.style.display = 'none';
+                showHideRecommendationsBtn.textContent = 'Show Song Recommendations';
+            }
+        });
+
+        function fetchRecommendations() {
+        fetch('http://127.0.0.1:8000/recommendations')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to fetch recommendations');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Once recommendations are fetched, update the HTML to display them
+                var recommendationsList = document.getElementById('recommendationsList');
+                recommendationsList.innerHTML = ''; // Clear existing content
+
+                data.forEach(song => {
+                    var listItem = document.createElement('li');
+                    listItem.textContent = song;
+                    recommendationsList.appendChild(listItem);
+                });
+            })
+            .catch(error => {
+                console.error('Error fetching recommendations:', error);
+            });
+    }
+
     </script>
 </body>
 </html>

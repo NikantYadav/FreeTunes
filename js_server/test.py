@@ -1,11 +1,7 @@
-import subprocess
+from youtubesearchpython import VideosSearch
 
-def execute_server_js():
-    try:
-        # Execute server.js using Node.js
-        subprocess.run(['node', 'server.js'], check=True)
-    except subprocess.CalledProcessError as e:
-        print(f"Error executing server.js: {e}")
+item_id = input('song name')
 
-if __name__ == "__main__":
-    execute_server_js()
+videosSearch = VideosSearch(item_id, limit = 2)
+url = videosSearch.result()['result'][0]['title']
+print(url)
