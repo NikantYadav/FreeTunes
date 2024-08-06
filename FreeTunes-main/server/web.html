@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Video ID Form</title>
+</head>
+<body>
+    <h1>Submit Song Name</h1>
+    <form id="videoForm" action="http://127.0.0.1:8000/" method="get">
+        <label for="video_id">Song Name:</label>
+        <input type="text" id="video_id" name="item_id" required>
+        <button type="submit" id="submitBtn">Submit</button>
+    </form>
+
+    <div id="playSongSection" style="display: none;">
+        <h2>Play Song</h2>
+        <button id="playButton">Play</button>
+        <audio id="audioPlayer" controls style="display: none;"></audio>
+    </div>
+
+    <button id="showHideRecommendationsBtn">Show Song Recommendations</button>
+    <div id="recommendationsSection" style="display: none;">
+        <h2>Recommended Songs</h2>
+        <ul id="recommendationsList"></ul>
+    </div>
+
+
+    <script>
+        document.getElementById('videoForm').addEventListener('submit', function(event) {
+            event.preventDefault(); // Prevent the default form submission behavior
+            
+            var videoId = document.getElementById('video_id').value;
+            
+            // Disable the submit button to prevent multiple clicks
+            document.getElementById('submitBtn').disabled = true;
+
+            // Make the API call asynchronously
+            fetch('http://127.0.0.1:8000/?item_id=' + videoId)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Handle the API response data
+                    console.log(data);
+                    var mp3Filename = data.filename;
+                    audioPlayer.src = 'mp3/' + mp3Filename;
+                })
+                
+                .finally(() => {
+                    // Re-enable the submit button after the API call is complete
+                    document.getElementById('submitBtn').disabled = false;
+                    
+                    // Show the "Play Song" section regardless of the API call result
+                    document.getElementById('playSongSection').style.display = 'block';
+                });
+        });
+
+        document.getElementById('playButton').addEventListener('click', function() {
+            var audioPlayer = document.getElementById('audioPlayer');
+            
+            
+            audioPlayer.src = 'mp3/audio.mp3';
+            
+            audioPlayer.style.display = 'block';
+            
+            audioPlayer.play();        
+        });
+
+
+
+
+        document.getElementById('showHideRecommendationsBtn').addEventListener('click', function() {
+            var recommendationsSection = document.getElementById('recommendationsSection');
+            var showHideRecommendationsBtn = document.getElementById('showHideRecommendationsBtn');
+
+            if (recommendationsSection.style.display === 'none') {
+                fetchRecommendations();
+                recommendationsSection.style.display = 'block';
+                showHideRecommendationsBtn.textContent = 'Hide Recommendations';
+            } else {
+                recommendationsSection.style.display = 'none';
+                showHideRecommendationsBtn.textContent = 'Show Song Recommendations';
+            }
+        });
+
+        function fetchRecommendations() {
+        fetch('http://127.0.0.1:8000/recommendations')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to fetch recommendations');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Once recommendations are fetched, update the HTML to display them
+                var recommendationsList = document.getElementById('recommendationsList');
+                recommendationsList.innerHTML = ''; // Clear existing content
+
+                data.forEach(song => {
+                    var listItem = document.createElement('li');
+                    listItem.textContent = song;
+                    recommendationsList.appendChild(listItem);
+                });
+            })
+            .catch(error => {
+                console.error('Error fetching recommendations:', error);
+            });
+    }
+
+    </script>
+</body>
+</html>
