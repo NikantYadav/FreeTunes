@@ -23,10 +23,11 @@ dotenv_path = Path('./client.env')
 load_dotenv(dotenv_path=dotenv_path)
 
 SECRET_KEY = os.getenv('SECRET_COOKIE_KEY')
+
 ALGORITHM = os.getenv("ALGORITHM")
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
+ACCESS_TOKEN_EXPIRE_MINUTES = os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES")
 EMAIL_HOST = os.getenv("EMAIL_HOST")  
-EMAIL_PORT = int(os.getenv("EMAIL_PORT"))  
+EMAIL_PORT = os.getenv("EMAIL_PORT") 
 EMAIL_USER = os.getenv("EMAIL_USER")
 EMAIL_PASS = os.getenv("EMAIL_PASS")
 
