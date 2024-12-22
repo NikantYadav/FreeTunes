@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException,WebSocket, WebSocketDisconnect
 from controller.controller import search2hls
+from controller.controller import search2hls_rapidapi
 from controller.controller import streaming  
 from controller.controller import songdetails
 from controller.controller import get_id
@@ -58,7 +59,7 @@ async def websocket_endpoint(websocket: WebSocket):
         })
         
         if id:
-            await search2hls(search_query, websocket)
+            await search2hls_rapidapi(search_query, websocket)
             hls_file_url = await streaming(id)
             print(hls_file_url)
 
