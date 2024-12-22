@@ -771,7 +771,7 @@ const Dashboard = () => {
         )}
   
   
-        {/* Player Section (unchanged) */}
+        {/* Player Section */}
         {showPlayer && songData && (
           <div className="bg-black p-6 fixed bottom-0 left-0 w-full z-10">
             <div className="flex justify-between items-center">
