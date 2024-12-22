@@ -35,10 +35,17 @@ def fetch_initial_link(video_id, api_key):
     }
 
     try:
+        print("Sending GET request to the API...")
+
         response = requests.get(url, headers=headers, params=querystring)
+        
+        print(f"Received response with status code: {response.status_code}")
         response.raise_for_status()
+
         data = response.json()
+        print(f"Extracted link: {link}")
         return data.get('link')
+    
     except requests.exceptions.RequestException as e:
         print(f"Error occurred while fetching initial link: {e}")
         return None
