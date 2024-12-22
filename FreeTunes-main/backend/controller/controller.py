@@ -17,7 +17,10 @@ load_dotenv(dotenv_path=dotenv_path)
 
 SPOTIFY_CLIENT_ID = str(os.getenv('Client_ID'))
 SPOTIFY_CLIENT_SECRET = str(os.getenv('Client_Secret'))
-API_KEY =str(os.getenv('API_KEY_YOUTUBE_GOOGLE'))
+YOUTUBE_API_KEY =str(os.getenv('API_KEY_YOUTUBE_GOOGLE'))
+RAPID_API_KEY = str(os.getenv('RAPID_API_KEY'))
+
+
 rapid_username = str(os.getenv('RAPID_USERNAME'))
 
 sp = spotipy.Spotify(client_credentials_manager=SpotifyClientCredentials(client_id= SPOTIFY_CLIENT_ID, client_secret= SPOTIFY_CLIENT_SECRET))
@@ -41,9 +44,7 @@ def fetch_initial_link(video_id, api_key):
         
         print(f"Received response with status code: {response.status_code}")
         response.raise_for_status()
-
         data = response.json()
-        print(f"Extracted link: {link}")
         return data.get('link')
     
     except requests.exceptions.RequestException as e:
@@ -242,7 +243,7 @@ async def get_id_googleapi(search_query):
     params = {
         "part": "snippet",
         "q": search_query,
-        "key": API_KEY
+        "key": YOUTUBE_API_KEY
     }
 
     try:
@@ -277,7 +278,7 @@ async def search2hls_rapidapi(search_query: str, websocket: WebSocket):
         params = {
             "part": "snippet",
             "q": search_query,
-            "key": API_KEY
+            "key": YOUTUBE_API_KEY
         }
 
         try:
@@ -368,7 +369,7 @@ async def search2hls_rapidapi(search_query: str, websocket: WebSocket):
         await websocket.send_text("video id not found, aborting")
         return
 
-    mp3 = await download_audio(id, API_KEY)
+    mp3 = await download_audio(id, RAPID_API_KEY)
 
     if not mp3:
         await websocket.send_text("MP3 download failed, aborting.")
