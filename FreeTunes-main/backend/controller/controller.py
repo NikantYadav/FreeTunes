@@ -18,6 +18,7 @@ load_dotenv(dotenv_path=dotenv_path)
 SPOTIFY_CLIENT_ID = str(os.getenv('Client_ID'))
 SPOTIFY_CLIENT_SECRET = str(os.getenv('Client_Secret'))
 API_KEY =str(os.getenv('API_KEY_YOUTUBE_GOOGLE'))
+rapid_username = str(os.getenv('RAPID_USERNAME'))
 
 sp = spotipy.Spotify(client_credentials_manager=SpotifyClientCredentials(client_id= SPOTIFY_CLIENT_ID, client_secret= SPOTIFY_CLIENT_SECRET))
 
@@ -29,7 +30,8 @@ def fetch_initial_link(video_id, api_key):
     querystring = {"id": video_id}
     headers = {
         "x-rapidapi-key": api_key,
-        "x-rapidapi-host": "youtube-mp36.p.rapidapi.com"
+        "x-rapidapi-host": "youtube-mp36.p.rapidapi.com",
+        "User-Agent": f'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36 ${rapid_username}' 
     }
 
     try:
