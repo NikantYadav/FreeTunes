@@ -209,7 +209,6 @@ async def search2hls(search_query: str, websocket: WebSocket):
     await convert_hls(id, mp3)    
     return id
 
-
 async def streaming(id:str):
     base_dir = "./hls"
     subfolder_path = Path(base_dir) / id
@@ -227,6 +226,40 @@ async def streaming(id:str):
         print("HLS file not found.")
         return None
 
+
+
+async def get_id_googleapi(search_query):
+    url = "https://www.googleapis.com/youtube/v3/search"
+    params = {
+        "part": "snippet",
+        "q": search_query,
+        "key": API_KEY
+    }
+
+    try:
+        response = requests.get(url, params=params)
+        response.raise_for_status()
+        data = response.json()
+
+        if 'items' not in data or not data['items']:
+            print(f"No results found for search query: {search_query}")
+            return None
+        
+        video_id = data['items'][0]['id'].get('videoId')
+        if video_id:
+            print(f"Found video ID: {video_id}")
+            return video_id 
+        
+        else:
+            print(f"Video ID not found in response: {data}")
+            return None
+        
+    except requests.exceptions.RequestException as e:
+        print(f"Error occurred while searching for the song: {e}")
+        return None
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        return None
 
 async def search2hls_rapidapi(search_query: str, websocket: WebSocket):
  
@@ -256,8 +289,7 @@ async def search2hls_rapidapi(search_query: str, websocket: WebSocket):
                 return None
         except requests.exceptions.RequestException as e:
             print(f"Error occurred while searching for the song: {e}")
-            return None
-        
+            return None   
 
     async def download_audio(video_id, api_key):
 
