@@ -4,6 +4,7 @@ from controller.controller import search2hls_rapidapi
 from controller.controller import streaming  
 from controller.controller import songdetails
 from controller.controller import get_id
+from controller.controller import get_id_googleapi
 from routes.model import verify_access_token
 from dbconfig import db
 import json
@@ -46,7 +47,7 @@ async def websocket_endpoint(websocket: WebSocket):
         artist, song = await songdetails(updated_query)
         print(updated_query)
 
-        id = await get_id(search_query)
+        id = await get_id_googleapi(search_query)
 
         liked_status = await check_if_liked(artist, song, token)
 
