@@ -1,7 +1,6 @@
 import random
 import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+from mailjet_rest import Client
 from fastapi import APIRouter, HTTPException, Depends, Response, Request, BackgroundTasks
 from pydantic import BaseModel, EmailStr
 from datetime import datetime, timedelta
@@ -25,10 +24,6 @@ load_dotenv(dotenv_path=dotenv_path)
 SECRET_KEY = os.getenv('SECRET_COOKIE_KEY')
 ALGORITHM = os.getenv("ALGORITHM")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
-EMAIL_HOST = os.getenv("EMAIL_HOST")  
-EMAIL_PORT = int(os.getenv("EMAIL_PORT"))  
-EMAIL_USER = os.getenv("EMAIL_USER")
-EMAIL_PASS = os.getenv("EMAIL_PASS")
 
 class PlaylistUpdateRequest(BaseModel):
     action: str  
@@ -73,146 +68,164 @@ def verify_access_token(token: str):
 model_router = APIRouter()
 
 # Pydantic Models
-class OtpRequest(BaseModel):
-    email: EmailStr
+# class OtpRequest(BaseModel):
+#     email: EmailStr
 
-class VerifyOtpRequest(BaseModel):
-    email: EmailStr
-    otp: str
+# class VerifyOtpRequest(BaseModel):
+#     email: EmailStr
+#     otp: str
 
 class TokenRequest(BaseModel):
     access_token: str
 
-def send_email(email: str, otp: str):
-    try:
 
-        message = MIMEMultipart()
-        message["From"] = EMAIL_USER
-        message["To"] = email
-        message["Subject"] = "Your OTP Code"
-        body = f"Your OTP code is: {otp}. It is valid for 10 minutes."
-        message.attach(MIMEText(body, "plain"))
+# def send_email(email: str, otp: str):
+#     data = {
+#         'Messages': [
+#             {
+#                 "From": {
+#                     "Email": "nfreetunes@gmail.com", 
+#                     "Name": "FreeTunes"
+#                 },
+#                 "To": [
+#                     {
+#                         "Email": email,
+#                     }
+#                 ],
+#                 "Subject": "Your OTP Code",
+#                 "TextPart": f"Your OTP code is: {otp}. It is valid for 10 minutes.",
+#                 "HTMLPart": f"<h3>Your OTP code is: <strong>{otp}</strong></h3><p>It is valid for 10 minutes.</p>"
+#             }
+#         ]
+#     }
 
-        with smtplib.SMTP(EMAIL_HOST, EMAIL_PORT) as server:
-            server.starttls()
-            server.login(EMAIL_USER, EMAIL_PASS)
-            server.sendmail(EMAIL_USER, email, message.as_string())
-        print(f"OTP email sent to {email}")
-    except Exception as e:
-        print(f"Failed to send email: {e}")
-        raise HTTPException(status_code=500, detail="Failed to send OTP email.")
+#     try:
+#         result = mailjet.send.create(data=data)
 
-
-@model_router.post("/generate/otp")
-async def generate_otp(request: OtpRequest, background_tasks: BackgroundTasks):
-    try:
-        email = request.email
-        
-        
-        otp = str(random.randint(100000, 999999))
-        time = datetime.utcnow() + timedelta(minutes=10)  
-        expiry_time = time.replace(microsecond=0)
-
-        try:
-            result = await db["otps"].update_one(
-                {"email": email}, 
-                {"$set": {"otp": otp, "expiry": expiry_time}}, 
-                upsert=True
-            )
-        except PyMongoError as e:
-            print(f"MongoDB error while updating OTP for {email}: {str(e)}")
-            raise HTTPException(status_code=500, detail={"generated":False})        
-        
-
-        updated_document = await db["otps"].find_one({"email": email})
-
-        if updated_document["otp"] != otp or updated_document["expiry"] != expiry_time:
-            print(f"Failed to update or insert OTP entry for {email}.")
-            raise HTTPException(status_code=500, detail={"generated":False})
-
-        send_email(email, otp)
-        return {"generated": True}
-
-    except Exception as e:
-        print(f"Error while generating OTP: {e}")
-        raise HTTPException(status_code=500, detail={"generated":False})
-
-@model_router.post("/verify/otp")
-async def verify_otp(request: VerifyOtpRequest, response: Response):
-    try:
-        email = request.email
-        otp = request.otp
-        
-        otp_entry = await db["otps"].find_one({"email": email})
-        if not otp_entry:
-            raise HTTPException(status_code=404, detail={"verified":False, "message":"OTP not found for the provided email."})
-        
-        if otp_entry["otp"] != otp:
-            raise HTTPException(status_code=400, detail={"verified":False, "message":"Invalid OTP."})
-        
-        if otp_entry["expiry"] < datetime.utcnow():
-            raise HTTPException(status_code=400, detail={"verified":False, "message": "OTP has expired."})
-        
-        user = await db["users"].find_one({"email": email})
-        if not user:
-            raise HTTPException(status_code=404, detail={"verified":False, "message":"User not found"})
-
-        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-        token_data = {"user_id": str(user["_id"]), "email": email}
-        token = create_access_token(data=token_data, expires_delta=access_token_expires)
-
-        await db["otps"].delete_one({"email": email})
-
-        return {
-            "verified" : True,
-            "message": "OTP verified successfully.",
-            "access_token": token,
-            "user": {
-                "id": str(user["_id"]),
-                "name": user["name"],
-                "email": user["email"],
-                "playlist": user.get("playlist", []),
-                "history": user.get("history", []),
-            }
-        }
+#         if result.status_code == 200:
+#             print("OTP email sent successfully!")
+#         else:
+#             print(f"Failed to send OTP email. Status: {result.status_code}")
+#             print(result.json())
     
-    except Exception as e:
-        print(f"Error while verifying OTP: {e}")
-        raise HTTPException(status_code=500, detail={"verified":False, "message":"Internal Server Error"})
+#     except Exception as e:
+#         print(f"Error while sending email: {e}")
+        
+#     except Exception as e:
+#         print(f"Failed to send email: {e}")
+#         raise HTTPException(status_code=500, detail="Failed to send OTP email.")
+
+
+# @model_router.post("/generate/otp")
+# async def generate_otp(request: OtpRequest, background_tasks: BackgroundTasks):
+#     try:
+#         email = request.email
+        
+        
+#         otp = str(random.randint(100000, 999999))
+#         time = datetime.utcnow() + timedelta(minutes=10)  
+#         expiry_time = time.replace(microsecond=0)
+
+#         try:
+#             result = await db["otps"].update_one(
+#                 {"email": email}, 
+#                 {"$set": {"otp": otp, "expiry": expiry_time}}, 
+#                 upsert=True
+#             )
+#         except PyMongoError as e:
+#             print(f"MongoDB error while updating OTP for {email}: {str(e)}")
+#             raise HTTPException(status_code=500, detail={"generated":False})        
+        
+
+#         updated_document = await db["otps"].find_one({"email": email})
+
+#         if updated_document["otp"] != otp or updated_document["expiry"] != expiry_time:
+#             print(f"Failed to update or insert OTP entry for {email}.")
+#             raise HTTPException(status_code=500, detail={"generated":False})
+
+#         send_email(email, otp)
+#         return {"generated": True}
+
+#     except Exception as e:
+#         print(f"Error while generating OTP: {e}")
+#         raise HTTPException(status_code=500, detail={"generated":False})
+
+# @model_router.post("/verify/otp")
+# async def verify_otp(request: VerifyOtpRequest, response: Response):
+#     try:
+#         email = request.email
+#         otp = request.otp
+        
+#         otp_entry = await db["otps"].find_one({"email": email})
+#         if not otp_entry:
+#             raise HTTPException(status_code=404, detail={"verified":False, "message":"OTP not found for the provided email."})
+        
+#         if otp_entry["otp"] != otp:
+#             raise HTTPException(status_code=400, detail={"verified":False, "message":"Invalid OTP."})
+        
+#         if otp_entry["expiry"] < datetime.utcnow():
+#             raise HTTPException(status_code=400, detail={"verified":False, "message": "OTP has expired."})
+        
+#         user = await db["users"].find_one({"email": email})
+#         if not user:
+#             raise HTTPException(status_code=404, detail={"verified":False, "message":"User not found"})
+
+#         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+#         token_data = {"user_id": str(user["_id"]), "email": email}
+#         token = create_access_token(data=token_data, expires_delta=access_token_expires)
+
+#         await db["otps"].delete_one({"email": email})
+
+#         return {
+#             "verified" : True,
+#             "message": "OTP verified successfully.",
+#             "access_token": token,
+#             "user": {
+#                 "id": str(user["_id"]),
+#                 "name": user["name"],
+#                 "email": user["email"],
+#                 "playlist": user.get("playlist", []),
+#                 "history": user.get("history", []),
+#             }
+#         }
+    
+#     except Exception as e:
+#         print(f"Error while verifying OTP: {e}")
+#         raise HTTPException(status_code=500, detail={"verified":False, "message":"Internal Server Error"})
 
 #verify otp for new user
-@model_router.post("/verify/otp-new")
-async def verify_otp_new(request: VerifyOtpRequest, response: Response):
-    try:
-        email = request.email
-        otp = request.otp
-        print(email)
-        print(otp)
-        otp_entry = await db["otps"].find_one({"email": email})
+# @model_router.post("/verify/otp-new")
+# async def verify_otp_new(request: VerifyOtpRequest, response: Response):
+#     try:
+#         email = request.email
+#         otp = request.otp
+#         print(email)
+#         print(otp)
+#         otp_entry = await db["otps"].find_one({"email": email})
 
-        if not otp_entry:
-            print('check 1')
-            raise HTTPException(status_code=404, detail={"verified":False, "message":"OTP not found for the provided email."})
+#         if not otp_entry:
+#             print('check 1')
+#             raise HTTPException(status_code=404, detail={"verified":False, "message":"OTP not found for the provided email."})
         
-        if otp_entry["otp"] != otp:
-            print('check 2')
-            raise HTTPException(status_code=400, detail={"verified":False, "message":"Invalid OTP."})
+#         if otp_entry["otp"] != otp:
+#             print('check 2')
+#             raise HTTPException(status_code=400, detail={"verified":False, "message":"Invalid OTP."})
         
-        if otp_entry["expiry"] < datetime.utcnow():
-            print('check 3')
-            raise HTTPException(status_code=400, detail={"verified":False, "message": "OTP has expired."})
+#         if otp_entry["expiry"] < datetime.utcnow():
+#             print('check 3')
+#             raise HTTPException(status_code=400, detail={"verified":False, "message": "OTP has expired."})
         
-        await db["otps"].delete_one({"email": email})
+#         await db["otps"].delete_one({"email": email})
 
-        return {
-            "verified" : True,
-            "message": "OTP verified successfully."
-        }
+#         return {
+#             "verified" : True,
+#             "message": "OTP verified successfully."
+#         }
     
 
-    except Exception as e:
-        print(f"Error while verifying OTP: {e}")
-        raise HTTPException(status_code=500, detail={"verified":False, "message":"Internal Server Error"})
+#     except Exception as e:
+#         print(f"Error while verifying OTP: {e}")
+#         raise HTTPException(status_code=500, detail={"verified":False, "message":"Internal Server Error"})
 
 @model_router.post("/create/user")
 async def create_user(item: user, request: Request):

@@ -9,12 +9,21 @@ import os
 from routes.model import model_router
 from fastapi import APIRouter, HTTPException, Depends, Response, Request, BackgroundTasks
 from spotifyapi import recommendations
+from routes.authentication import model_router
+from contextlib import asynccontextmanager
+from connection_manager import active_connection
 
 hls_directory = "hls"
 
 os.makedirs(hls_directory, exist_ok=True)
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app:FastAPI):
+    yield
+    for ws in active_connection:
+        await ws.close(code=1001)
+
+app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -23,6 +32,9 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "DELETE"],  
     allow_headers=["*"],  
 )
+
+
+
 
 @app.get("/test")
 async def get_message(request: Request):

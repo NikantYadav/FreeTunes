@@ -2,24 +2,26 @@
 
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, ExpandIcon } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import Cookies from "js-cookie"
+import Cookies from "js-cookie";
 import { useRouter } from "next/navigation";
-import { toast, ToastContainer } from 'react-toastify'; 
-import 'react-toastify/dist/ReactToastify.css'
-import '../../styles/toastStyles.css'
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import '../../styles/toastStyles.css';
+
+declare global {
+  interface Window {
+    phoneEmailReceiver?: (userObj: { user_json_url: string }) => void;
+  }
+}
 
 export default function SignUp() {
   const serverURL = process.env.NEXT_PUBLIC_SERVER_URL;
   const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [otp, setOtp] = useState("");
   const [name, setName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [otpSent, setOtpSent] = useState(false); // State to track OTP sending status
-  const [isOtpValid, setIsOtpValid] = useState(false); // State to track OTP validation// State to store the generated OTP
-  const [accountCreated, setAccountCreated] = useState(false); // State to track account creation
+  const [nameSubmitted, setNameSubmitted] = useState(false);
 
   const verifyToken = async (token) => {
     try{
@@ -44,122 +46,89 @@ export default function SignUp() {
   }
 
 
-useEffect(()=>{
-    const token = Cookies.get("access_token")
-    if(token){
-      verifyToken(token)
-    }
-  }, [])
+    useEffect(()=>{
+        const token = Cookies.get("access_token")
+        if(token){
+        verifyToken(token)
+        }
+    }, [])
 
   
-
-    const handleEmailSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-
-    try{
-        const response = await fetch(`${serverURL}/model/generate/otp`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({email : email})
-        })
-        
-        if(response.ok){
-            const data = await response.json()
-            if(data.generated){
-                setOtpSent(true)
-                toast.success("OTP sent to your email.")
+    useEffect(() => {
+        if (!nameSubmitted) return;
+    
+        window.phoneEmailReceiver = async ({ user_json_url }) => {
+          setIsSubmitting(true);
+          try {
+            const emailResponse = await fetch(`${serverURL}/model/verify/email/new`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ jsonURL: user_json_url }),
+            });
+    
+            const emailData = await emailResponse.json();
+    
+            // if (!emailResponse.ok) {
+            //   toast.error(emailData.message || "Email verification failed 1.");
+            //   return;
+            // }
+    
+            if (!(emailData.verified)) {
+              toast.error("Account already exists. Please use Login page.");
+              return;
             }
-        } else {
-            throw new Error("Failed to generate OTP. Please try again")
-        }
-    } catch(error){
-        toast.error(error.message)
-    } finally{
-        setIsSubmitting(false)
-    }
-  };
 
-  
-  const handleOtpSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    try{
-        const response = await fetch(`${serverURL}/model/verify/otp-new`,{
-            method : "POST",
-            headers : {
-                "Content-Type" : "application/json"
-            },
-            body: JSON.stringify({email: email, otp:otp})
-        })
-        
-        console.log({ email: email, otp: otp })
-
-        const data = await response.json()
-
-        if(response.ok && data.verified){
-            setIsOtpValid(true)
-            toast.success(data.message)
-
-        } else {
-            toast.error(data.message)
-        }
-    } catch (error){
-        toast.error("Error verifying OTP. Please try again")
-    } finally {
-        setIsSubmitting(false)
-    }   
-    }
-  
-
-  const handleAccountCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-
-    try{
-        const response  = await fetch(`${serverURL}/model/create/user`, {
-            method: "POST",
-            headers: {
-                "Content-Type" : "application/json",
-            },
-            body : JSON.stringify({email:email, name:name})
-        })
-
-        const data = await response.json()
-
-        if(response.ok && data.status){
-            Cookies.set("access_token", data.access_token, {expires: 7})
-            localStorage.setItem("user", JSON.stringify(data.user))
-            setAccountCreated(true)
-            console.log(data)
-            toast.success("Account created successfully!")
-            router.push("/dashboard");
-        } else {
-            toast.error(data.message)
-        }
-    } catch(error){
-        toast.error("Error creating account. Please try again")
-    } finally{
-        setIsSubmitting(false)
-    }
-  };
+            if(emailData.email){
+            const createResponse = await fetch(`${serverURL}/model/create/user`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ email: emailData.email, name: name }),
+            });
+    
+            const createData = await createResponse.json();
+            
+            if (createResponse.ok && createData.status) {
+              Cookies.set("access_token", createData.access_token, { expires: 7 });
+              localStorage.setItem("user", JSON.stringify(createData.user));
+              toast.success("Account created successfully!");
+                setTimeout(() => {
+                router.push("/dashboard");
+                }, 2500);
+              router.push("/dashboard");
+            } else {
+              toast.error(createData.message || "Failed to create account.");
+            }}
+          } catch (error) {
+            console.error("Verification process failed:", error);
+            toast.error("An error occurred during the verification process.");
+          } finally {
+            setIsSubmitting(false);
+          }
+        };
+    
+        const script = document.createElement("script");
+        script.src = "https://www.phone.email/verify_email_v1.js";
+        script.async = true;
+        document.body.appendChild(script);
+    
+        return () => {
+          document.body.removeChild(script);
+          delete window.phoneEmailReceiver;
+        };
+      }, [nameSubmitted, name, router]);
 
   return (
     <div className="relative min-h-screen overflow-hidden text-white">
-    <ToastContainer />
-      {/* Enhanced background elements */}
+      <ToastContainer />
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -top-1/4 -left-1/4 w-1/2 h-1/2 bg-indigo-700 rounded-full filter blur-[100px] opacity-30 animate-pulse"></div>
         <div className="absolute -bottom-1/4 -right-1/4 w-1/2 h-1/2 bg-purple-700 rounded-full filter blur-[100px] opacity-30 animate-pulse"></div>
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full h-full bg-gradient-to-br from-indigo-500/10 to-purple-500/10 rounded-full filter blur-[100px] animate-spin-slow"></div>
       </div>
 
-      {/* Content */}
       <div className="relative z-10 mt-5 lg:mt-0">
         <section className="container min-h-screen flex flex-col justify-center items-center gap-8 pb-8 pt-6 md:py-10">
-          <motion.div
+        <motion.div
             className="flex max-w-[980px] flex-col items-center gap-4 text-center"
             initial={{ opacity: 0, y: -50 }}
             animate={{ opacity: 1, y: 0 }}
@@ -183,68 +152,13 @@ useEffect(()=>{
             </motion.p>
           </motion.div>
 
-          {/* Email Input Form */}
-          {!otpSent && !isOtpValid && (
+          {!nameSubmitted ? (
             <motion.form
-              onSubmit={handleEmailSubmit}
+              onSubmit={(e) => {
+                e.preventDefault();
+                setNameSubmitted(true);
+              }}
               className="mt-8 w-full max-w-lg flex flex-col items-center gap-6"
-              initial={{ opacity: 0, y: 50 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 1 }}
-            >
-              <input
-                type="email"
-                placeholder="Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full p-4 bg-white/10 border border-white/20 text-white rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                required
-              />
-              <button
-                type="submit"
-                className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-semibold px-8 py-4 rounded-full hover:scale-105 transition-all disabled:opacity-50"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? "Sending OTP..." : "Send OTP"}
-              </button>
-            </motion.form>
-          )}
-
-          {/* OTP Validation Form */}
-          {otpSent && !isOtpValid && (
-            <motion.form
-              onSubmit={handleOtpSubmit}
-              className="mt-8 w-full max-w-lg flex flex-col items-center gap-6"
-              initial={{ opacity: 0, y: 50 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 1 }}
-            >
-              <input
-                type="text"
-                placeholder="Enter OTP"
-                value={otp}
-                onChange={(e) => setOtp(e.target.value)}
-                className="w-full p-4 bg-white/10 border border-white/20 text-white rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                required
-              />
-              <button
-                type="submit"
-                className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-semibold px-8 py-4 rounded-full hover:scale-105 transition-all disabled:opacity-50"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? "Verifying OTP..." : "Verify OTP"}
-              </button>
-            </motion.form>
-          )}
-
-          {/* Name Input Form for Account Creation */}
-          {isOtpValid && !accountCreated && (
-            <motion.form
-              onSubmit={handleAccountCreate}
-              className="mt-8 w-full max-w-lg flex flex-col items-center gap-6"
-              initial={{ opacity: 0, y: 50 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 1 }}
             >
               <input
                 type="text"
@@ -259,42 +173,24 @@ useEffect(()=>{
                 className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-semibold px-8 py-4 rounded-full hover:scale-105 transition-all disabled:opacity-50"
                 disabled={isSubmitting}
               >
-                {isSubmitting ? "Creating Account..." : "Create Account"}
+                {isSubmitting ? "Continuing..." : "Next"}
               </button>
             </motion.form>
-          )}
-
-          {/* Success Message */}
-{accountCreated && (
-    <motion.div 
-        className="mt-6 text-white font-semibold text-xl bg-gradient-to-r from-blue-500/50 to-purple-600/50 p-4 rounded-lg shadow-2xl border border-white/20"
-        initial={{ opacity: 0, scale: 0.9 }} 
-        animate={{ opacity: 1, scale: 1 }} 
-        transition={{ duration: 0.6, ease: "easeOut" }}
-    >
-        <span className="font-bold">Account Created Successfully!</span>
-        <p className="text-gray-200">Welcome! You can now explore all our features.</p>
-    </motion.div>
-)}
-
-
-          {/* Back to Login Link */}
-          {!accountCreated && (
-            <motion.div
-              className="mt-6 text-gray-400"
-              initial={{ opacity: 0, y: 50 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 1.2 }}
-            >
-              <Link href="/login" className="flex items-center gap-2">
-                <ArrowLeft className="w-5 h-5" />
-                Back to Login
-              </Link>
+          ) : (
+            <motion.div className="mt-8 w-full max-w-lg flex flex-col items-center gap-6">
+              <div className="pe_verify_email" data-client-id="14032901526356850453"></div>
+              <p className="text-gray-400">Check your email for verification</p>
             </motion.div>
           )}
+
+          <motion.div className="mt-6 text-gray-400">
+            <Link href="/login" className="flex items-center gap-2">
+              <ArrowLeft className="w-5 h-5" />
+              Back to Login
+            </Link>
+          </motion.div>
         </section>
       </div>
     </div>
   );
 }
-

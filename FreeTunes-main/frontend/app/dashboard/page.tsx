@@ -59,6 +59,8 @@ const Dashboard = () => {
   const [playlist, setPlaylist] = useState([]);
   const [isMainContent, setIsMainContent] = useState(true);
 
+
+  const [wsStatus, setWsStatus] = useState<'connecting'|'open'|'closed'>('closed')
   const fetchPlaylists = async () => {
     try {
       const token = Cookies.get("access_token");
@@ -208,8 +210,9 @@ const Dashboard = () => {
       if (response.ok && data.auth) {
         localStorage.setItem("user", JSON.stringify(data.user));
         setAccessToken(token);
-        fetchMusicRecommendations();
-        fetchPlaylists();
+        console.log(token)
+        //fetchMusicRecommendations();
+        //fetchPlaylists();
       } else {
         router.push("/login");
       }
@@ -220,9 +223,8 @@ const Dashboard = () => {
 
   useEffect(() => {
     const token = Cookies.get("access_token");
-    verifyToken(token);
+    verifyToken(token); 
     fetchHistory()
-    fetchPlaylists()
   }, []);
 
   const fetchMusicRecommendations = async () => {
@@ -331,10 +333,33 @@ const Dashboard = () => {
         socketRef.current = new WebSocket(`${wssURL}`);
 
 
-        socketRef.current.onopen = () => {
-            console.log("WebSocket connection established");
-            socketRef.current?.send(JSON.stringify({ type: 'auth', token: authToken }));
-            socketRef.current?.send(searchQuery);  
+        // socketRef.current.onopen = async () => {
+        //     console.log("WebSocket connection established");
+        //     socketRef.current?.send(JSON.stringify({ type: 'auth', token: authToken }));
+        //     setTimeout(()=> {socketRef.current?.send(searchQuery)},30);  
+        // };
+
+        socketRef.current.onopen = async () => {
+          setWsStatus('open')
+          console.log("WebSocket connection established");
+          
+          // 1. Send auth FIRST
+          socketRef.current.send(JSON.stringify({ token: authToken }));
+          console.log("Auth token sent");
+        
+          // 2. Wait for auth confirmation
+          const authResponse = await new Promise(resolve => {
+            socketRef.current.addEventListener('message', (event) => {
+              if (JSON.parse(event.data).status === 'auth_ok') 
+                console.log("Authentication successful, preparing to send search query...");
+                resolve(true);
+            }, { once: true });
+          });
+        
+          // 3. Send search query AFTER confirmation
+          console.log("Sending search query:", searchQuery);
+          socketRef.current.send(searchQuery);
+          console.log("Search query sent successfully.");
         };
 
         socketRef.current.onmessage = (event) => {
@@ -379,6 +404,7 @@ const Dashboard = () => {
 
         socketRef.current.onclose = () => {
             console.log("WebSocket connection closed");
+            setWsStatus('closed')
             setIsLoading(false);
         };
 

@@ -8,6 +8,16 @@ from controller.controller import get_id_googleapi
 from routes.model import verify_access_token
 from dbconfig import db
 import json
+from connection_manager import active_connection
+import asyncio
+
+async def heartbeat(websocket: WebSocket):
+    try:
+        while True:
+            await asyncio.sleep(30)
+            await websocket.send_json({"type":"ping"})
+    except Exception as e:
+        print(f"Heartbeat error or client disconnected: {e}")
 
 async def check_if_liked(artist: str, song: str, token: str) -> bool:
     try:
@@ -33,18 +43,35 @@ router = APIRouter()
 
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
+    print('New websocket connection attempting to connect')
     await websocket.accept()
+    print('Websocket accepted')
+    active_connection.add(websocket)
+
+    heartbeat_task = asyncio.create_task(heartbeat(WebSocket))
 
     try:
+        print('waiting for auth message')
         auth_message = await websocket.receive_text()
+        print(f"Auth message received: {auth_message}")
+        if not auth_message:
+            await websocket.close(code=1008)
+            return
         data = json.loads(auth_message)
 
         token = data["token"]
-
-        search_query = await websocket.receive_text()
-        updated_query = search_query[:-4]
+        if not token:
+            await websocket.close(code=1008)
+            return
         
+        await websocket.send_json({"status": "auth_ok"})
+        print("Auth OK sent, waiting for search query...")
+        search_query = await websocket.receive_text()
+        print(f"Search query received: {search_query}")
+        updated_query = search_query[:-4]
+        print("Looking for search details")
         artist, song = await songdetails(updated_query)
+        print("Search Details found")
         print(updated_query)
 
         id = await get_id_googleapi(search_query)
@@ -80,10 +107,14 @@ async def websocket_endpoint(websocket: WebSocket):
         else:
             await websocket.send_text("No valid video ID found, aborting.")
 
+    except WebSocketDisconnect:
+        print("Clinet Disconnected")
     except Exception as e:
         # Handle any exceptions during the process
         await websocket.send_text(f"Error: {str(e)}")
     finally:
+        heartbeat_task.cancel()
+        active_connection.remove(websocket)
         await websocket.close()
 
 

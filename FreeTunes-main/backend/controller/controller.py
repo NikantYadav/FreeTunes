@@ -11,6 +11,8 @@ import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 from dotenv import load_dotenv
 import requests
+from concurrent.futures import ThreadPoolExecutor
+
 
 dotenv_path = Path('./client.env')
 load_dotenv(dotenv_path=dotenv_path)
@@ -29,44 +31,77 @@ COOKIES_DIR = 'controller/cookies.txt'
 
 def fetch_initial_link(video_id, api_key):
 
-    url = "https://youtube-mp36.p.rapidapi.com/dl"
-    querystring = {"id": video_id}
+    url = "https://youtube-media-downloader.p.rapidapi.com/v2/video/details"
+    querystring = {"videoId":video_id,"videos":"false","audios":"true","subtitles":"false","related":"false"}
+    
     headers = {
-        "x-rapidapi-key": api_key,
-        "x-rapidapi-host": "youtube-mp36.p.rapidapi.com",
-        "User-Agent": f'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36 ${rapid_username}' 
+	"x-rapidapi-key": "c0e55c6b9bmsh9fc25948c641639p12a475jsn852d1e73d1f8",
+	"x-rapidapi-host": "youtube-media-downloader.p.rapidapi.com"
     }
 
     try:
-        print("Sending GET request to the API...")
+        print("Sending GET request to YT-Media Downloader API...")
 
         response = requests.get(url, headers=headers, params=querystring)
         
         print(f"Received response with status code: {response.status_code}")
         response.raise_for_status()
         data = response.json()
-        return data.get('link')
+        link = data['audios']['items'][0]['url']
+        print(link)
+        return link
     
     except requests.exceptions.RequestException as e:
         print(f"Error occurred while fetching initial link: {e}")
         return None
 
-async def songdetails(search_query):
-    try:
-        result = sp.search(search_query, type='track', limit=1)
+# async def songdetails(search_query):
+#     try:
+#         result = sp.search(search_query, type='track', limit=1)
 
-        if result['tracks']['items']:
-            track = result['tracks']['items'][0]
-            artist = track['artists'][0]['name']
-            song = track['name']
-            print(f"Found track: Artist: {artist}, Song: {song}")
-            return artist, song
-        else:
-            print("No tracks found for this search query.")
+#         if result['tracks']['items']:
+#             track = result['tracks']['items'][0]
+#             artist = track['artists'][0]['name']
+#             song = track['name']
+#             print(f"Found track: Artist: {artist}, Song: {song}")
+#             return artist, song
+#         else:
+#             print("No tracks found for this search query.")
+#             return None, None
+#     except Exception as e:
+#         print(f"Error occurred while searching for the song: {e}")
+#         return None, None
+
+async def songdetails(search_query: str):
+    try:
+        # Wrap synchronous Spotify call in thread executor
+        loop = asyncio.get_event_loop()
+        with ThreadPoolExecutor() as executor:
+            result = await loop.run_in_executor(
+                executor,
+                lambda: sp.search(search_query, type='track', limit=1)
+            )
+
+        if not result['tracks']['items']:
+            print("No tracks found for:", search_query)
             return None, None
-    except Exception as e:
-        print(f"Error occurred while searching for the song: {e}")
+
+        track = result['tracks']['items'][0]
+        return (
+            track['artists'][0]['name'].strip(),
+            track['name'].strip()
+        )
+
+    except spotipy.SpotifyException as e:
+        print(f"Spotify API Error: {e.code} - {e.msg}")
         return None, None
+    except KeyError as e:
+        print(f"Missing expected data in API response: {str(e)}")
+        return None, None
+    except Exception as e:
+        print(f"Unexpected error in songdetails: {str(e)}")
+        return None, None
+
 
 async def deletefolder(folder_path:str):
     await asyncio.sleep(360)
@@ -235,7 +270,6 @@ async def streaming(id:str):
     else:
         print("HLS file not found.")
         return None
-
 
 
 async def get_id_googleapi(search_query):
