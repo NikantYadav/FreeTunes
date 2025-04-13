@@ -23,8 +23,6 @@ YOUTUBE_API_KEY =str(os.getenv('API_KEY_YOUTUBE_GOOGLE'))
 RAPID_API_KEY = str(os.getenv('RAPID_API_KEY'))
 
 
-rapid_username = str(os.getenv('RAPID_USERNAME'))
-
 sp = spotipy.Spotify(client_credentials_manager=SpotifyClientCredentials(client_id= SPOTIFY_CLIENT_ID, client_secret= SPOTIFY_CLIENT_SECRET))
 
 COOKIES_DIR = 'controller/cookies.txt'
@@ -35,7 +33,7 @@ def fetch_initial_link(video_id, api_key):
     querystring = {"videoId":video_id,"videos":"false","audios":"true","subtitles":"false","related":"false"}
     
     headers = {
-	"x-rapidapi-key": "c0e55c6b9bmsh9fc25948c641639p12a475jsn852d1e73d1f8",
+	"x-rapidapi-key": RAPID_API_KEY,
 	"x-rapidapi-host": "youtube-media-downloader.p.rapidapi.com"
     }
 
@@ -305,7 +303,116 @@ async def get_id_googleapi(search_query):
         print(f"Unexpected error: {e}")
         return None
 
-async def search2hls_rapidapi(search_query: str, websocket: WebSocket):
+# async def search2hls_rapidapi(search_query: str, websocket: WebSocket):
+ 
+#     async def yt_search_googleapi(search_query):
+#         url = "https://www.googleapis.com/youtube/v3/search"
+#         params = {
+#             "part": "snippet",
+#             "q": search_query,
+#             "key": YOUTUBE_API_KEY
+#         }
+
+#         try:
+#             response = requests.get(url, params=params)
+#             response.raise_for_status()
+#             data = response.json()
+
+#             if 'items' not in data or not data['items']:
+#                 print(f"No results found for search query: {search_query}")
+#                 return None
+            
+#             video_id = data['items'][0]['id'].get('videoId')
+#             if video_id:
+#                 print(f"Found video ID: {video_id}")
+#                 return video_id
+#             else:
+#                 print(f"Video ID not found in response: {data}")
+#                 return None
+#         except requests.exceptions.RequestException as e:
+#             print(f"Error occurred while searching for the song: {e}")
+#             return None   
+
+#     async def download_audio(video_id, api_key):
+
+#         output_dir = "./mp3"
+#         os.makedirs(output_dir, exist_ok=True)
+#         mp3_file = os.path.join(output_dir, f"{video_id}.mp3")
+
+#         try:
+#             print(f"Fetching initial link for video ID: {video_id}")
+#             initial_link = fetch_initial_link(video_id, api_key)
+            
+#             if not initial_link:
+#                 print("Failed to get initial link.")
+#                 return None
+
+#             print(f"Downloading MP3 for video ID: {video_id}...")
+#             response = requests.get(initial_link, stream=True)
+#             response.raise_for_status()
+
+#             with open(mp3_file, "wb") as f:
+#                 for chunk in response.iter_content(chunk_size=8192):
+#                     f.write(chunk)
+
+#             print(f"MP3 downloaded successfully: {mp3_file}")
+#             return mp3_file
+
+#         except requests.exceptions.RequestException as e:
+#             print(f"Error: {e}")
+#             return None
+        
+#     async def convert_hls(video_id, mp3_file):
+#         output_dir = "./hls"
+#         hls_dir = os.path.join(output_dir, video_id)
+
+#         os.makedirs(hls_dir, exist_ok=True)
+#         hls_file = os.path.join(hls_dir, f"{video_id}.m3u8")
+
+#         print(f"Converting MP3 to HLS format: {hls_file}")
+#         command = [
+#             "ffmpeg",
+#             "-i", mp3_file,
+#             "-acodec", "aac",
+#             "-b:a", "320k",
+#             "-hls_time", "10",
+#             "-hls_list_size", "0",
+#             "-f", "hls",
+#             hls_file
+#         ]
+
+#         try:
+#             subprocess.run(command, check=True)
+#         except subprocess.CalledProcessError as e:
+#             print(f"Error during HLS conversion: {e}")
+#             print(f"Exit status: {e.returncode}")
+#             print(f"stdeerr: {e.stderr}")
+
+#         print(f"HLS files are saved in: {hls_dir}")
+
+#         if os.path.exists(mp3_file):
+#             os.remove(mp3_file)
+#             print(f"Deleted the MP3 file: {mp3_file}")
+
+#         asyncio.create_task(deletefolder(hls_dir))
+
+#     id = await yt_search_googleapi(search_query)
+#     if not id:
+#         await websocket.send_text("video id not found, aborting")
+#         return
+
+#     mp3 = await download_audio(id, RAPID_API_KEY)
+
+#     if not mp3:
+#         await websocket.send_text("MP3 download failed, aborting.")
+#         print("MP3 download failed, aborting.")
+#         return
+    
+#     await convert_hls(id, mp3)    
+#     return id
+
+
+async def search2hls_rapidapi_noHLS(search_query: str, websocket: WebSocket):
  
     async def yt_search_googleapi(search_query):
         url = "https://www.googleapis.com/youtube/v3/search"
@@ -335,80 +442,32 @@ async def search2hls_rapidapi(search_query: str, websocket: WebSocket):
             print(f"Error occurred while searching for the song: {e}")
             return None   
 
-    async def download_audio(video_id, api_key):
 
-        output_dir = "./mp3"
-        os.makedirs(output_dir, exist_ok=True)
-        mp3_file = os.path.join(output_dir, f"{video_id}.mp3")
-
+    async def get_streamlink(video_id, api_key):
         try:
-            print(f"Fetching initial link for video ID: {video_id}")
-            initial_link = fetch_initial_link(video_id, api_key)
+            print(f"Fetching streamable link for video ID: {video_id}")
+            streamable_link = fetch_initial_link(video_id, api_key)
             
-            if not initial_link:
+            if not streamable_link:
                 print("Failed to get initial link.")
                 return None
 
-            print(f"Downloading MP3 for video ID: {video_id}...")
-            response = requests.get(initial_link, stream=True)
-            response.raise_for_status()
-
-            with open(mp3_file, "wb") as f:
-                for chunk in response.iter_content(chunk_size=8192):
-                    f.write(chunk)
-
-            print(f"MP3 downloaded successfully: {mp3_file}")
-            return mp3_file
+            return streamable_link
 
         except requests.exceptions.RequestException as e:
             print(f"Error: {e}")
             return None
-        
-    async def convert_hls(video_id, mp3_file):
-        output_dir = "./hls"
-        hls_dir = os.path.join(output_dir, video_id)
-
-        os.makedirs(hls_dir, exist_ok=True)
-        hls_file = os.path.join(hls_dir, f"{video_id}.m3u8")
-
-        print(f"Converting MP3 to HLS format: {hls_file}")
-        command = [
-            "ffmpeg",
-            "-i", mp3_file,
-            "-acodec", "aac",
-            "-b:a", "320k",
-            "-hls_time", "10",
-            "-hls_list_size", "0",
-            "-f", "hls",
-            hls_file
-        ]
-
-        try:
-            subprocess.run(command, check=True)
-        except subprocess.CalledProcessError as e:
-            print(f"Error during HLS conversion: {e}")
-            print(f"Exit status: {e.returncode}")
-            print(f"stdeerr: {e.stderr}")
-
-        print(f"HLS files are saved in: {hls_dir}")
-
-        if os.path.exists(mp3_file):
-            os.remove(mp3_file)
-            print(f"Deleted the MP3 file: {mp3_file}")
-
-        asyncio.create_task(deletefolder(hls_dir))
-
+            
     id = await yt_search_googleapi(search_query)
     if not id:
         await websocket.send_text("video id not found, aborting")
         return
 
-    mp3 = await download_audio(id, RAPID_API_KEY)
+    link = await get_streamlink(id, RAPID_API_KEY)
 
-    if not mp3:
-        await websocket.send_text("MP3 download failed, aborting.")
-        print("MP3 download failed, aborting.")
+    if not link:
+        await websocket.send_text("Streamable link not fouund, aborting.")
+        print("Streamable link not found, aborting.")
         return
-    
-    await convert_hls(id, mp3)    
-    return id
+
+    return link

@@ -10,25 +10,24 @@ import Link from "next/link";
 import ReactAudioPlayer from 'react-h5-audio-player';
 import { FaPlay, FaPause, FaArrowLeft, FaArrowRight, FaHeart, FaPlus, FaMusic } from 'react-icons/fa';
 import { MdMusicNote } from 'react-icons/md';
-import Hls from "hls.js";
+// Removed HLS import because we are not using HLS streaming now
+// import Hls from "hls.js";
 import PlusPopup from "@/components/popupCard";
 import { fetchPlaylistNames } from "@/components/utils/popupCardFunctions";
 import Sidebar from "@/components/sidebar";
 import { SidebarItem } from "@/components/sidebar";
-import SidebarExpanded, {SidebarExpandedItem} from "@/components/sidebarExpanded";
+import SidebarExpanded, { SidebarExpandedItem } from "@/components/sidebarExpanded";
 
 const Dashboard = () => {
-
 
   interface Playlist {
     name: string;
     songCount: string; 
   }
 
-
   const serverURL = process.env.NEXT_PUBLIC_SERVER_URL;
-  const wssURL = process.env.NEXT_PUBLIC_WSS_URL
-  
+  const wssURL = process.env.NEXT_PUBLIC_WSS_URL;
+
   const router = useRouter();
   const [musicRecommendations, setMusicRecommendations] = useState([]);
   const [selectedTrack, setSelectedTrack] = useState(null);
@@ -37,7 +36,7 @@ const Dashboard = () => {
   const [artistName, setArtistName] = useState("");
   const [songData, setSongData] = useState({ name: "", artist: "" });
 
-  const [history, setHistory] = useState([])
+  const [history, setHistory] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [m3u8Url, setM3u8Url] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -47,20 +46,20 @@ const Dashboard = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const hlsRef = useRef<Hls | null>(null);
+  // Removed HLS ref and ready flag since we are not using HLS
+  // const hlsRef = useRef<Hls | null>(null);
+  // const [isHlsReady, setIsHlsReady] = useState(false);
   const socketRef = useRef<WebSocket | null>(null);
-  const [isHlsReady, setIsHlsReady] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
-  const [isUrlavailable, setIsUrlavailable] = useState(false)
 
-  const [isPopupVisible, setIsPopupVisible] = useState(false)
+  const [isPopupVisible, setIsPopupVisible] = useState(false);
   const [playlistNames, setPlaylistNames] = useState<string[] | null>(null);
   const [selectedPlaylist, setSelectedPlaylist] = useState(null);
   const [playlist, setPlaylist] = useState([]);
   const [isMainContent, setIsMainContent] = useState(true);
 
+  const [wsStatus, setWsStatus] = useState<'connecting'|'open'|'closed'>('closed');
 
-  const [wsStatus, setWsStatus] = useState<'connecting'|'open'|'closed'>('closed')
   const fetchPlaylists = async () => {
     try {
       const token = Cookies.get("access_token");
@@ -105,8 +104,7 @@ const Dashboard = () => {
 
   const handlePlaylistSelect = async (nameplaylist: string) => {
     setIsMainContent(false);
-
-    console.log(nameplaylist)
+    console.log(nameplaylist);
 
     const token = Cookies.get("access_token");
     const userString = localStorage.getItem("user");
@@ -124,18 +122,18 @@ const Dashboard = () => {
           playlistName : nameplaylist,
           userID : userID,
         }),
-      })
+      });
 
       if(response.ok){
-        const data = await response.json()
-        setSelectedPlaylist(data)
+        const data = await response.json();
+        setSelectedPlaylist(data);
       } else {
         throw new Error("Failed to fetch playlists");
       }
       
     } catch(error){
-      console.log(error)
-      toast.error("Failed to fetch Playlist")
+      console.log(error);
+      toast.error("Failed to fetch Playlist");
     }
   };
 
@@ -147,7 +145,7 @@ const Dashboard = () => {
   const createPlaylist = async (playlistName: string, songName: string, artistName: string) => {
     console.log(`Create Playlist: ${playlistName}`);
     const token = Cookies.get("access_token");
-    console.log(token)
+    console.log(token);
     const userString = localStorage.getItem("user");
     const user = userString ? JSON.parse(userString) : null;
 
@@ -177,13 +175,10 @@ const Dashboard = () => {
           songData.name as string,  
           songData.artist as string 
         );
-
-        // const { selectedPlaylists, unselectedPlaylists } = await fetchPlaylistNames(token, songData.name, songData.artist);
         const combinedPlaylists = [...selectedPlaylists, ...unselectedPlaylists];
         setPlaylistNames(combinedPlaylists);
-        console.log(combinedPlaylists)
+        console.log(combinedPlaylists);
         return data;
-
       } else {
         const errorData = await response.json();
         console.error("Failed to create playlist", errorData);
@@ -210,9 +205,8 @@ const Dashboard = () => {
       if (response.ok && data.auth) {
         localStorage.setItem("user", JSON.stringify(data.user));
         setAccessToken(token);
-        console.log(token)
-        //fetchMusicRecommendations();
-        //fetchPlaylists();
+        console.log(token);
+        // Optionally, call fetchMusicRecommendations() or fetchPlaylists()
       } else {
         router.push("/login");
       }
@@ -224,11 +218,11 @@ const Dashboard = () => {
   useEffect(() => {
     const token = Cookies.get("access_token");
     verifyToken(token); 
-    fetchHistory()
+    fetchHistory();
   }, []);
 
   const fetchMusicRecommendations = async () => {
-    const token = Cookies.get("access_token")
+    const token = Cookies.get("access_token");
     try {
       const response = await fetch(`${serverURL}/model/recommendations`, {
         method: "GET",
@@ -279,7 +273,7 @@ const Dashboard = () => {
         )
       );
 
-      const topThree = uniqueData.slice(-3)
+      const topThree = uniqueData.slice(-3);
       
       setHistory(topThree); 
     } catch (error) {
@@ -287,10 +281,9 @@ const Dashboard = () => {
     }
   };
   
-  const updateSongHistory = async (songName,songArtist) => {
+  const updateSongHistory = async (songName: string, songArtist: string) => {
     try {
-      const token = Cookies.get("access_token")
-      
+      const token = Cookies.get("access_token");
       const payload = {
         songName: songName,
         artistName: songArtist
@@ -305,267 +298,78 @@ const Dashboard = () => {
           ...(token ? { "authorization": token } : {}),
         },
         body : JSON.stringify(payload),
-      })
+      });
 
       if(response.ok){
-        const updatedUser = await response.json()
+        const updatedUser = await response.json();
       } else {
-        console.error("Failed to update song history")
+        console.error("Failed to update song history");
       } 
     } catch(error){
-      console.error("Error updating song history", error)
+      console.error("Error updating song history", error);
     }
-  }
+  };
 
   const handleSearch = async () => {
     resetPlayer();
     console.log(songName);
-    
     setSearchQuery(`${songName} ${artistName} song`);
     setIsLoading(true);
   };
 
-  // useEffect(() => {
-  //   if (searchQuery) {
-  //     console.log(searchQuery)
-  //       const authToken = Cookies.get('access_token')
-
-  //       socketRef.current = new WebSocket(`${wssURL}`);
-
-
-  //       // socketRef.current.onopen = async () => {
-  //       //     console.log("WebSocket connection established");
-  //       //     socketRef.current?.send(JSON.stringify({ type: 'auth', token: authToken }));
-  //       //     setTimeout(()=> {socketRef.current?.send(searchQuery)},30);  
-  //       // };
-
-  //       socketRef.current.onopen = async () => {
-  //         setWsStatus('open')
-  //         console.log("WebSocket connection established");
-          
-  //         // 1. Send auth FIRST
-  //         socketRef.current.send(JSON.stringify({ token: authToken }));
-  //         console.log("Auth token sent");
-        
-  //         // 2. Wait for auth confirmation
-  //         const authResponse = await new Promise(resolve => {
-  //           socketRef.current.addEventListener('message', (event) => {
-  //             if (JSON.parse(event.data).status === 'auth_ok') 
-  //               console.log("Authentication successful, preparing to send search query...");
-  //               resolve(true);
-  //           }, { once: true });
-  //         });
-        
-  //         // 3. Send search query AFTER confirmation
-  //         console.log("Sending search query:", searchQuery);
-  //         socketRef.current.send(searchQuery);
-  //         console.log("Search query sent successfully.");
-  //       };
-
-  //       socketRef.current.onmessage = (event) => {
-  //           const data = JSON.parse(event.data);
-  //           console.log(data);
-            
-
-  //           if (data.artist && data.song) {
-  //               setSongData({
-  //                   name: data.song,
-  //                   artist: data.artist,
-  //               });
-  //               setShowPlayer(true);
-  //               updateSongHistory(data.song, data.artist);
-  //           }
-            
-  //           if(data.liked){
-  //             setIsLiked(true)
-  //           } else {
-  //             setIsLiked(false)
-  //           }
-
-
-  //           if (data.hls !== undefined) {
-  //               if (data.hls) {
-  //                   console.log("HLS stream ready");
-  //                   console.log(isLiked)
-  //                   setM3u8Url(data.file);
-  //                   setIsUrlavailable(true);
-  //               } else {
-  //                   setIsLoading(true)
-  //                   console.log("HLS stream not ready");
-  //                   setM3u8Url("");
-  //                   setIsUrlavailable(false);
-  //               }
-  //           }
-  //       };
-
-  //       socketRef.current.onerror = (event: Event) => {
-  //           console.error("Websocket error:", event);
-  //       };
-
-  //       socketRef.current.onclose = () => {
-  //           console.log("WebSocket connection closed");
-  //           setWsStatus('closed')
-  //           setIsLoading(false);
-  //       };
-
-  //       return () => {
-  //           if (socketRef.current) {
-  //               socketRef.current.close();
-  //           }
-  //       };
-  //   }
-  // }, [searchQuery]); 
-
+  // ---------------------------
+  // Song Playback without HLS
+  // ---------------------------
+  // Removed all WebSocket/HLS related useEffects and functions.
+  // Instead, when a song is searched, we simply fetch from the /mp3 endpoint and update the audio source.
   useEffect(() => {
     if (searchQuery) {
       console.log("Initiating search for:", searchQuery);
-      const authToken = Cookies.get('access_token');
-      const ws = new WebSocket(`${wssURL}`);
-  
-      // Audio element reference
-      const audioRef = useRef<HTMLAudioElement | null>(null);
-  
-      ws.onopen = () => {
-        console.log("WebSocket connection established");
-        // Send authentication immediately
-        ws.send(JSON.stringify({ token: authToken }));
-      };
-  
-      ws.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        console.log("WebSocket message:", data);
-  
-        // Handle authentication confirmation
-        if (data.status === 'auth_ok') {
-          console.log("Authentication successful, sending query...");
-          ws.send(searchQuery);
-          return;
-        }
-  
-        // Process song metadata
-        if (data.artist && data.song) {
-          setSongData({
-            name: data.song,
-            artist: data.artist,
-            id: data.id,
-            liked: data.liked || false
+      const fetchAudio = async () => {
+        const authToken = Cookies.get('access_token');
+        setIsLoading(true);
+        try {
+          const response = await fetch(`${serverURL}/mp3`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              token: authToken,
+              search_query: searchQuery
+            })
           });
-          setShowPlayer(true);
-          updateSongHistory(data.song, data.artist);
-        }
-  
-        // Handle audio stream URL
-        if (data.hls && data.file) {
-          console.log("Received audio stream URL:", data.file);
-          
-          // Clean up previous audio instance
-          if (audioRef.current) {
-            audioRef.current.pause();
-            audioRef.current.remove();
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
           }
-  
-          // Create new audio element
-          audioRef.current = new Audio(data.file);
-          
-          // Start playback
-          //audioRef.current.play();
-        }
-  
-        // Handle errors
-        if (data.error) {
-          console.error("Server error:", data.error);
-          setShowPlayer(false);
-        }
-      };
-  
-      ws.onerror = (error) => {
-        console.error("WebSocket error:", error);
-        toast.error("Connection error. Please try again.");
-      };
-  
-      ws.onclose = () => {
-        console.log("WebSocket connection closed");
-        // Cleanup audio on disconnect
-        if (audioRef.current) {
-          audioRef.current.pause();
-          audioRef.current.remove();
+
+          const data = await response.json();
+
+          if (data.artist && data.song && data.file) {
+            setSongData({
+              name: data.song,
+              artist: data.artist,
+              id: data.id,
+              streamURL: data.file,  // fixed assignment syntax
+              liked: data.liked || false
+            });
+            setShowPlayer(true);
+            updateSongHistory(data.song, data.artist);
+            setM3u8Url(data.file); // set the native audio URL
+          } else {
+            console.error("Could not retrieve audio stream");
+          }   
+        } catch (error) {
+          console.error("Error fetching audio:", error);
+          toast.error("Failed to fetch song");
+        } finally {
+          setIsLoading(false);
         }
       };
-  
-      return () => {
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.close();
-        }
-        if (audioRef.current) {
-          audioRef.current.pause();
-          audioRef.current.remove();
-        }
-      };
+      fetchAudio();
     }
   }, [searchQuery]);
-  
-
-
-  useEffect(() => {
-      if (isUrlavailable && m3u8Url && Hls.isSupported() && audioRef.current) {
-          
-          const hls = new Hls();
-          hlsRef.current = hls; 
-          
-          const desiredUrl = `${serverURL}/static/${m3u8Url}`;
-          console.log("Loading HLS stream from:", desiredUrl);
-      
-            
-          hls.loadSource(desiredUrl);
-          hls.attachMedia(audioRef.current);
-      
-            
-          hls.on(Hls.Events.MANIFEST_PARSED, () => {
-              console.log("HLS manifest parsed, ready to play.");
-              setIsHlsReady(true)
-              setIsLoading(false)
-          });
-      
-          
-          hls.on(Hls.Events.ERROR, (event, data) => {
-            console.error("HLS.js error:", data);
-            
-            if (typeof data.fatal === 'string' && Object.values(Hls.ErrorTypes).includes(data.fatal)) {
-              switch (data.fatal) {
-                  case Hls.ErrorTypes.NETWORK_ERROR:
-                      console.error("Network error while fetching .ts files.");
-                      break;
-                  case Hls.ErrorTypes.MEDIA_ERROR:
-                      console.error("Error loading media.");
-                      break;
-                  case Hls.ErrorTypes.OTHER_ERROR:
-                      console.error("Other HLS.js error.");
-                      break;
-                  case Hls.ErrorTypes.KEY_SYSTEM_ERROR:
-                      console.error("Key system error.");
-                      break;
-                  case Hls.ErrorTypes.MUX_ERROR:
-                      console.error("Mux error.");
-                      break;
-                  default:
-                      console.error("Unknown fatal error.");
-                      break;
-              }
-          }
-        });
-      
-          return () => {
-              hls.destroy();
-              hlsRef.current = null 
-          };
-      } else if (audioRef.current) {
-            
-            audioRef.current.src = m3u8Url;
-            setIsHlsReady(true)
-            setIsLoading(false)
-      }
-  }, [isUrlavailable, m3u8Url]);
-      
 
   const skip = (seconds: number) => {
     if (audioRef.current) {
@@ -598,13 +402,12 @@ const Dashboard = () => {
     }
   };
 
-
   const handleSeek = (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
     if (!audioRef.current || duration === 0) return;
   
-    const progressBar = e.currentTarget; 
+    const progressBar = e.currentTarget;
     const rect = progressBar.getBoundingClientRect();
-    const clickPosition = e.clientX - rect.left; 
+    const clickPosition = e.clientX - rect.left;
     const newTime = (clickPosition / progressBar.offsetWidth) * duration;
   
     audioRef.current.currentTime = newTime;
@@ -616,7 +419,7 @@ const Dashboard = () => {
   };
 
   const resetPlayer = () => {
-    setIsLoading(true)
+    setIsLoading(true);
     console.log('Resetting player...');
     if (audioRef.current) {
         audioRef.current.pause();
@@ -625,12 +428,6 @@ const Dashboard = () => {
         audioRef.current.load();
         audioRef.current.currentTime = 0;
         console.log('Audio element reset.');
-    }
-
-    if (hlsRef.current) {
-        hlsRef.current.destroy();
-        console.log('HLS instance destroyed.');
-        hlsRef.current = null;
     }
 
     if (socketRef.current) {
@@ -643,20 +440,15 @@ const Dashboard = () => {
     setDuration(0);
     setIsPlaying(false);
     setM3u8Url('');
-    setIsHlsReady(false);
-    // setSongData(null);
-    setIsUrlavailable(false);
     console.log('State reset complete.');
   };
 
-  
   const handleLike = async () => {
     const previousLikedState = isLiked; 
     setIsLiked(!isLiked);
     const token = Cookies.get("access_token"); 
     const userString = localStorage.getItem("user");
     const user = userString ? JSON.parse(userString) : null;
-
     const playlistId = user?.playlist[0]; 
   
     if (!playlistId) {
@@ -702,17 +494,15 @@ const Dashboard = () => {
     } catch (error) {
       console.error("Error in handleLike:", error.message);
       toast.error("Failed to like the song");
-      setIsLiked(previousLikedState); 
+      setIsLiked(previousLikedState);
     }
   };
   
-
-  const playSong = async(songN, artistN) => {
+  const playSong = async (songN: string, artistN: string) => {
     resetPlayer();
     setSearchQuery(`${songN} ${artistN} song`);
     setIsLoading(true);
-  }
-
+  };
 
   return (
     <div className="min-h-screen flex bg-gray-950 text-white">
@@ -738,7 +528,6 @@ const Dashboard = () => {
             <ArrowLeft className="h-5 w-5 mr-3" />
             Back to Home
           </li>
-
           {playlist.map((playlist, index) => (
             <SidebarExpandedItem
               key={index}
@@ -754,93 +543,65 @@ const Dashboard = () => {
       <main className="flex-1 p-8 transition-all duration-300">
         {isMainContent ? (
           <>
-        <h2 className="text-4xl font-extrabold text-gray-100 mb-6">
-          Welcome Back!
-        </h2>      
+            <h2 className="text-4xl font-extrabold text-gray-100 mb-6">
+              Welcome Back!
+            </h2>      
   
-        {/* Search Bar */}
-        <div className="flex items-center space-x-4 mb-6">
-          <input
-            type="text"
-            placeholder="Song name"
-            value={songName}
-            onChange={(e) => setSongName(e.target.value)}
-            className="flex-grow p-4 bg-white/10 border border-white/20 text-white rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-          <input
-            type="text"
-            placeholder="Artist name"
-            value={artistName}
-            onChange={(e) => setArtistName(e.target.value)}
-            className="flex-grow p-4 bg-white/10 border border-white/20 text-white rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-          <button
-            onClick={handleSearch}
-            className="p-3 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-full hover:scale-105 transition-all"
-          >
-            <Search className="h-5 w-5" />
-          </button>
-        </div>
-
-          {/* Recently Played */}
-          <section className="mb-12">
-          <h3 className="text-2xl font-semibold text-gray-200 mb-4">Recently Played</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {history && history.length > 0 ? (
-              history.map((item : any, idx) => (
-                <motion.div
-                  key={idx}
-                  whileHover={{ scale: 1.03 }}
-                  className="bg-gradient-to-br from-gray-800 via-gray-900 to-gray-800 shadow-lg rounded-xl p-4 flex items-center gap-4 transition-all"
-                >
-                  <div className="w-16 h-16 bg-gray-700 rounded-lg flex items-center justify-center">
-                    <Music className="text-gray-300 w-8 h-8" />
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="font-bold text-white">{item.songName || "Unknown Song"}</h4>
-                    <p className="text-gray-400 text-sm">{item.artistName || "Unknown Artist"}</p>
-                  </div>
-                  <button
-                    className="text-indigo-400 hover:text-indigo-600 transition-all"
-                    onClick={() => playSong(item.songName, item.artistName)} // Pass the current item to handle playback
-                  >
-                  <Play />
-                  </button>
-                </motion.div>
-              ))
-            ) : (
-              <p className="text-gray-400">No recently played songs found.</p>
-            )}
-          </div>
-        </section>
-
-        {/* Recommendations Section */}
-        {/* <section className="mb-12">
-          <h3 className="text-2xl font-semibold text-gray-200 mb-4">Recommendations</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {recommendations.map((rec, idx) => (
-              <motion.div
-                key={idx}
-                whileHover={{ scale: 1.03 }}
-                className="bg-gradient-to-br from-gray-800 via-gray-900 to-gray-800 shadow-lg rounded-xl p-4 flex items-center gap-4 transition-all"
+            {/* Search Bar */}
+            <div className="flex items-center space-x-4 mb-6">
+              <input
+                type="text"
+                placeholder="Song name"
+                value={songName}
+                onChange={(e) => setSongName(e.target.value)}
+                className="flex-grow p-4 bg-white/10 border border-white/20 text-white rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+              <input
+                type="text"
+                placeholder="Artist name"
+                value={artistName}
+                onChange={(e) => setArtistName(e.target.value)}
+                className="flex-grow p-4 bg-white/10 border border-white/20 text-white rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+              <button
+                onClick={handleSearch}
+                className="p-3 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-full hover:scale-105 transition-all"
               >
-                <div className="w-16 h-16 bg-gray-700 rounded-lg flex items-center justify-center">
-                  <Music className="text-gray-300 w-8 h-8" />
-                </div>
-                <div className="flex-1">
-                  <h4 className="font-bold text-white">{rec.songName || "Unknown Song"}</h4>
-                  <p className="text-gray-400 text-sm">{rec.artistName || "Unknown Artist"}</p>
-                </div>
-                <button
-                  className="text-indigo-400 hover:text-indigo-600 transition-all"
-                  onClick={() => playSong(rec.songName, rec.artistName)} // Pass the current item to handle playback
-                >
-                  <Play />
-                </button>
-              </motion.div>
-            ))}
-          </div>
-        </section> */}
+                <Search className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Recently Played */}
+            <section className="mb-12">
+              <h3 className="text-2xl font-semibold text-gray-200 mb-4">Recently Played</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {history && history.length > 0 ? (
+                  history.map((item: any, idx) => (
+                    <motion.div
+                      key={idx}
+                      whileHover={{ scale: 1.03 }}
+                      className="bg-gradient-to-br from-gray-800 via-gray-900 to-gray-800 shadow-lg rounded-xl p-4 flex items-center gap-4 transition-all"
+                    >
+                      <div className="w-16 h-16 bg-gray-700 rounded-lg flex items-center justify-center">
+                        <Music className="text-gray-300 w-8 h-8" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-bold text-white">{item.songName || "Unknown Song"}</h4>
+                        <p className="text-gray-400 text-sm">{item.artistName || "Unknown Artist"}</p>
+                      </div>
+                      <button
+                        className="text-indigo-400 hover:text-indigo-600 transition-all"
+                        onClick={() => playSong(item.songName, item.artistName)}
+                      >
+                        <Play />
+                      </button>
+                    </motion.div>
+                  ))
+                ) : (
+                  <p className="text-gray-400">No recently played songs found.</p>
+                )}
+              </div>
+            </section>
           </>
         ) : selectedPlaylist && (selectedPlaylist as any).songs ? (
           <>
@@ -885,7 +646,6 @@ const Dashboard = () => {
           <p className="text-gray-400">Playlist not found.</p>
         )}
   
-  
         {/* Player Section */}
         {showPlayer && songData && (
           <div className="bg-black p-6 fixed bottom-0 left-0 w-full z-10">
@@ -901,12 +661,12 @@ const Dashboard = () => {
                 </div>
               </div>
   
-              {/* Centered Buttons Section */}
+              {/* Hidden native Audio Element */}
               <audio
                 ref={audioRef}
                 onTimeUpdate={handleTimeUpdate}
-                src={m3u8Url}  // Ensure you are setting the source if needed
-                className="hidden" // Keep hidden unless you want to show native controls
+                src={m3u8Url}
+                className="hidden"
                 preload="auto"
               />
   
@@ -917,28 +677,28 @@ const Dashboard = () => {
                 <button
                   onClick={togglePlayPause}
                   className="text-white hover:text-gray-400 transition duration-200"
-                  disabled={!isHlsReady || isLoading}
+                  disabled={isLoading || !m3u8Url}
                 >
                   {isLoading ? (
                     <div className="w-8 h-8 border-4 border-t-transparent border-indigo-500 rounded-full animate-spin"></div>
-                  ) : isHlsReady ? (
+                  ) : (
                     isPlaying ? (
                       <Pause className="h-8 w-8" />
                     ) : (
                       <Play className="h-8 w-8" />
                     )
-                  ) : null }
+                  )}
                 </button>
                 <button onClick={() => skip(10)} className="text-white hover:text-gray-400 transition duration-200">
                   <ArrowRight className="h-8 w-8" />
                 </button>
               </div>
   
-              {/* Right Section with Liked Button */}
+              {/* Right Section with Liked and Plus Buttons */}
               <div className="flex items-center space-x-6">
                 <button className="text-white" onClick={handleLike}>
                   <FaHeart
-                    className={`h-6 w-6 ${isLiked ? "text-purple-600" : "text-gray-400"}`} // Apply the color conditionally
+                    className={`h-6 w-6 ${isLiked ? "text-purple-600" : "text-gray-400"}`}
                   />
                 </button>
                   
@@ -973,7 +733,7 @@ const Dashboard = () => {
             playlistNames={playlistNames}
             onPlaylistSelect={handlePlaylistSelect}
             createPlaylist={createPlaylist}
-            songName={songData.name}  // Pass songName here
+            songName={songData.name}
             artistName={songData.artist}
           />
         )}
@@ -981,7 +741,6 @@ const Dashboard = () => {
       </main>
     </div>
   );
-  
 };
 
 export default Dashboard;
