@@ -29,29 +29,103 @@ COOKIES_DIR = 'controller/cookies.txt'
 
 def fetch_initial_link(video_id, api_key):
 
-    url = "https://youtube-media-downloader.p.rapidapi.com/v2/video/details"
-    querystring = {"videoId":video_id,"videos":"false","audios":"true","subtitles":"false","related":"false"}
-    
-    headers = {
-	"x-rapidapi-key": RAPID_API_KEY,
-	"x-rapidapi-host": "youtube-media-downloader.p.rapidapi.com"
-    }
+    api_list = [
+        {   
+            "name" : "YT-Media Downloader",
+            "url" : "https://youtube-media-downloader.p.rapidapi.com/v2/video/details",
+            "headers" : {
+            "x-rapidapi-key": RAPID_API_KEY,
+            "x-rapidapi-host": "youtube-media-downloader.p.rapidapi.com"
+            },
+            "querystring" : {"videoId": video_id, "videos": "false", "audios": "true", "subtitles": "false", "related": "false"}
+        },
 
-    try:
-        print("Sending GET request to YT-Media Downloader API...")
+        {
+            "name" : "YTStream Download",
+            "url" : "https://ytstream-download-youtube-videos.p.rapidapi.com/dl",
+            "headers": {
+                "x-rapidapi-key" : RAPID_API_KEY,
+                "x-rapidapi-host" : "ytstream-download-youtube-videos.p.rapidapi.com"
+            },
+            "querystring" : {"id" : video_id}
+        },
 
-        response = requests.get(url, headers=headers, params=querystring)
+        {
+            "name" : "YOUTUBE MP4/MP3/M4A CDN",
+            "url" : "https://youtube-mp4-mp3-m4a-cdn.p.rapidapi.com/stream",
+            "headers" : {
+                "x-rapidapi-key": RAPID_API_KEY,
+	            "x-rapidapi-host": "youtube-mp4-mp3-m4a-cdn.p.rapidapi.com"
+            },
+            "querystring" : {"id" : video_id}
+        },
+
+        {
+         "name" : "Youtube Downloader API",
+         "url" : "https://youtube-downloader-api-fast-reliable-and-easy.p.rapidapi.com/fetch_audio",
+         "headers" : {
+                "x-rapidapi-key": RAPID_API_KEY,
+	            "x-rapidapi-host": "youtube-downloader-api-fast-reliable-and-easy.p.rapidapi.com"
+            },
+        "querystring" : {"url" : f"https://www.youtube.com/watch?v={video_id}"}
+        }
+    ]
+
+    for api in api_list:
+        try:
+            print(f"Sending GET Request to API: {api['name']}")
+
+            response = requests.get(api["url"], headers=api["headers"], params=api["querystring"])
+            response.raise_for_status()
+            print(f"Received response with status code: {response.status_code}")
+            
+            data = response.json()
+            if api["name"] == "YTStream Download" : 
+                if "adaptiveFormats" in data:
+                    adapformat = data["adaptiveFormats"]
+                    for format in adapformat:
+                        if "audio" in format["mimeType"]:
+                            link = format["url"]
+                            print(f"Found audio link: {link}")
+                            return link
+                print("Audio URL not found in response from YTStream Download")
+            
+            elif api["name"] == "YOUTUBE MP4/MP3/M4A CDN":
+                if "formats" in data:
+                    for format in data["formats"]:
+                        if "audio" in format["type"]:
+                            link = format["url"]
+                            print(f"Found audio link: {link}")
+                            return link
+                print("Audio URL not found in response from YOUTUBE MP4/MP3/M4A CDN")
+
+            elif api["name"] == "Youtube Downloader API":
+                if "audio_formats" in data:
+                    for format in data["audio_formats"]:
+                        if "m4a" in format["ext"]:
+                            link = format["url"]
+                            print(f"Found audio link: {link}")
+                            return link
+                print("Audio URL not found in response from Youtube Downloader API")
+
+            elif api["name"] == "YT-Media Downloader":
+                if "audios" in data and "items" in data["audios"]: 
+                    link = data['audios']['items'][0]['url']
+                    if link:
+                        print(link)
+                        return link
+                    else:
+                        print("Audio URL not found in response")
+                else:
+                    print("Audio URL not found in response from YT-Media Downloader")
+                
         
-        print(f"Received response with status code: {response.status_code}")
-        response.raise_for_status()
-        data = response.json()
-        link = data['audios']['items'][0]['url']
-        print(link)
-        return link
-    
-    except requests.exceptions.RequestException as e:
-        print(f"Error occurred while fetching initial link: {e}")
-        return None
+        except requests.exceptions.RequestException as e:
+            print(f"Error occurred while fetching initial link from {api['name']}: {e}")
+            continue
+
+    print("All API attempts failed.")
+    return None
 
 # async def songdetails(search_query):
 #     try:
@@ -268,7 +342,6 @@ async def streaming(id:str):
     else:
         print("HLS file not found.")
         return None
-
 
 async def get_id_googleapi(search_query):
     url = "https://www.googleapis.com/youtube/v3/search"
